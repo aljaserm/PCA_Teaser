@@ -1,0 +1,125 @@
+---
+title: "Principal Component Analysis: Teaser"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+
+First, we load the packages we need.
+
+```{r}
+# suppressPackageStartupMessages(library(# put package here))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(ggplot2))
+# install.packages("plotly")
+suppressPackageStartupMessages(library(plotly))
+# devtools::install_github("ropensci/plotly")
+
+
+```
+
+# Business Objective
+
+We want to reduce a 3D representation of an object (a volcano) into 2D. We do this because the idea is easy to understand. This is what we are doing every time looking at a TV screen. But how does an algorithm do this? We use an algorithm called principal component analysis that is a very famous technique to reduce dimensionality of data.
+
+We will cover Principal Component Analysis in much more detail in our section on unsupervised learning. This teaser will show you how easy it is to set up a model and get good results.
+
+We will also work with Rmarkdown a lot, because you can create reproducable results easily. Another advantage is that you can easily combine code, documentation and results in one document. If you are not familiar with Rmarkdown or certain techniques from data preprocessing, there is an R refresher section, that will explain most important packages and techniques. 
+
+# Data Understanding
+
+We will work on topographic information on Auckland's Maunga Whau volcano. The dataset is shipped with R and you can load it with R. You can load it with  **data()**.
+
+```{r}
+data("volcano")
+# summary(volcano)
+# dim(volcano)  # 87 rows, 61 columns
+# typeof(volcano)  # double 
+# class(volcano)  # Matrix
+# dplyr::glimpse(volcano)
+```
+
+Let's take a look at the volcano in 3D. Nothing provides understanding faster than a visualisation.
+
+
+```{r}
+plot_ly(z=volcano, type="surface")
+
+```
+
+This is an interactive plot. You can zoom in or rotate it.
+
+# Data Preparation
+
+We have the data in wide-format, but for further processing we need to convert it to tidy-format. We perform this in different steps and pipe the result of the operation to the left of the piping operator to the right side of the piping operator.
+
+If that does not sound familiar to you, follow through the R refreshment section and you will understand what I mean with this.
+
+Furthermore, it is a matrix format and we want data transform it to a dataframe.
+
+```{r}
+volcano_df <- volcano %>% 
+  as.data.frame() %>%  # transform to dataframe
+  mutate(y = 1:dim(volcano)[1]) %>%  # create new colum y from count of rows
+  gather(key = "x", value = "z", 1:61) %>%  # reshape data from wide to tidy
+  mutate (x = gsub(pattern = "V", replacement = "", x = x)) %>%  # column X is currently character and includes V1, V2, ... we need to remove "V"...
+  mutate(x = as.numeric(x))  # ... and cast it to numeric
+```
+
+# Modeling
+
+Now we can perform principal component analysis. We will cover the details of the algorithm later, but in short terms what it is doing is, finding a new coordinate axis, that has the widest range of data. This is the first principal component. It basically takes the object and rotates it, so that the widest range can be seen.
+
+And then another coordinate axis is searched, which is perpendicular to the first one, and has the second largest range of data.
+
+We use function **prcomp()** and pass the dataframe. Also, data needs to be centered and scaled. Otherwise, if you have data on very different scales, let's say variable A ranges from 0 to 1 and variable B has a range of 0 to 1000. The variation of variable A is negligible compared to B and won't have much impact on the overall result. As a rule of thumb, rather apply scaling to your data. 
+
+We save the result in object "volcano_pca".
+
+```{r}
+volcano_pca <- prcomp(x = volcano_df, 
+                      center = T, 
+                      scale. = T)
+
+```
+
+We can extract the results for the different principal components and store it in some new dataframe.
+
+```{r}
+volcano_principal_components <- data.frame(PC1 = volcano_pca$x[, 1],
+                         PC2 = volcano_pca$x[, 2],
+                         PC3 = volcano_pca$x[, 3])
+
+```
+
+Now we can visualise the result. We will use **ggplot()** for visualisation. But this is not a course on ggplot, so I provide this code directly to you.
+
+```{r}
+g <- ggplot(volcano_principal_components, aes(y = PC1, 
+                                              x = PC2,
+                                              col = PC3))
+g <- g + scale_color_gradientn(colours = rainbow(5))
+g <- g + scale_y_reverse()
+g <- g + geom_point(alpha = .3)
+g <- g + theme_bw()
+g
+```
+
+
+# Conclusion
+
+We can understand 3D objects easily, so there is not much point in reduction from 3D to 2D, but imagine you have 10 variables (equals 10 dimensions) or more in a dataset, and you want to see if there are patterns, similarities between the observations. Then it is extremely helpful if you can reduce the dimensions to an order that can be visualised.
+
+Did you see how easy that was? So don't be afraid. You will understand all the concepts in this course and you will be able to take this to action in your projects. I hope you join me on this journey and at the same time we have developing the understanding and the models.
+
+That is it for this lecture. Thank you very much and see you in the next one.
